@@ -1,0 +1,40 @@
+[package]
+name = "pianotype-pc"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "PianoType PC - Play chords on a MIDI keyboard to type on desktop"
+license = "MIT"
+repository = "https://github.com/Povo-43/pianotype_mobile"
+authors = ["Povo-43"]
+readme = "README.md"
+
+[[bin]]
+name = "pianotype"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.27", default-features = false, features = ["default_fonts", "glow", "persistence", "wayland", "x11"] }
+egui = "0.27"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+midir = "0.10"
+enigo = "0.2"
+rfd = "0.14"
+anyhow = "1.0"
+directories = "5.0"
+crossbeam-channel = "0.5"
+log = "0.4"
+env_logger = "0.11"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[workspace.metadata.dist]
+cargo-dist-version = "0.20.0"
+targets = ["x86_64-pc-windows-msvc", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+installers = ["shell", "powershell", "homebrew"]
