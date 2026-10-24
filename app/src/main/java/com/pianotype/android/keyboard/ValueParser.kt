@@ -20,7 +20,7 @@ object ValueParser {
 
     fun parse(value: String, shiftArmed: Boolean): OutputAction? {
         val upper = value.uppercase()
-        if (upper == "TOGGLE" || upper == "SHIFT") return null
+        if (upper == "TOGGLE" || upper == "SHIFT" || upper == "KANA") return null
 
         // MOD+key
         val plus = value.indexOf('+')
@@ -59,7 +59,7 @@ object ValueParser {
 
     fun isValid(value: String): Boolean {
         val upper = value.uppercase()
-        if (upper == "TOGGLE" || upper == "SHIFT") return true
+        if (upper == "TOGGLE" || upper == "SHIFT" || upper == "KANA") return true
         val plus = value.indexOf('+')
         if (plus > 0) {
             val mod = value.substring(0, plus).trim()

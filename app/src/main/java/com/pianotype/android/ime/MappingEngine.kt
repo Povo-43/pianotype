@@ -6,11 +6,17 @@ import com.pianotype.android.config.Mapping
 /**
  * 保持しているノート集合と完全一致するマッピングを探して発火する。
  * 両手条件などの制約は無し。
+ *
+ * かなモードの ON/OFF は [ConfigRepository] の `kanaMode`（TOML の kana_mode）
+ * を唯一の状態とし、「KANA」コマンドはモードの反転を [onKanaToggle] に通知するだけ。
+ * 設定画面のトグルと MIDI の KANA コードが同じモードを操作する。
  */
 class MappingEngine(
     private val configProvider: () -> Config,
     private val onToggle: (Boolean) -> Unit,
     private val onShiftArmed: () -> Unit,
+    // かなモードをこの値（提案）に切り替えてほしい
+    private val onKanaToggle: (Boolean) -> Unit,
     private val onAction: (value: String, shifted: Boolean) -> Unit,
 ) {
     private val held = HashSet<Int>()
@@ -36,6 +42,10 @@ class MappingEngine(
             "SHIFT" -> if (enabled) {
                 shiftArmed = true
                 onShiftArmed()
+            }
+            "KANA" -> {
+                shiftArmed = false
+                onKanaToggle(!configProvider().kanaMode)
             }
             else -> if (enabled) {
                 val s = shiftArmed

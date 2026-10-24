@@ -27,6 +27,11 @@ object DefaultConfig {
         keys = [34]
         value = "SHIFT"
 
+        # かなモードの ON/OFF（英数モード ↔ かなモード）
+        [[mapping]]
+        keys = [35]
+        value = "KANA"
+
         # ---------------- 英小文字 a〜l (左手: C major) ----------------
         [[mapping]]
         keys = [48, 52, 55, 60]
@@ -252,6 +257,8 @@ object DefaultConfig {
         // 制御コマンド (英数モードと同じ位置に置く)
         add(Mapping(listOf(33), "TOGGLE"))
         add(Mapping(listOf(34), "SHIFT"))
+        // かなモード ⇔ 英数モード
+        add(Mapping(listOf(35), "KANA"))
 
         fun row(left: List<Int>, values: List<String>) {
             values.forEachIndexed { i, v ->

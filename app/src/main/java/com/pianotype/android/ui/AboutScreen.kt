@@ -58,17 +58,20 @@ fun AboutContent() {
             Mono("CTRL+C, ALT+TAB       → ショートカット")
             Mono("TOGGLE                → タイピング ON/OFF")
             Mono("SHIFT                 → 次の1アクションだけ Shift")
+            Mono("KANA                  → かな/英数モード切替")
         }
 
         Section("入力モード (かな / 英数)") {
-            Text("設定画面の「入力モード」で、かなと英数を切り替えられます。IME の表示に現在のモードが出ます。")
+            Text("設定画面の「入力モード」で、かなと英数を切り替えられます。IME の表示に現在のモードが出ます。KANA を割り当てた和音 (既定では B1) でも切り替えられます。")
             Bullet("英数: 既定の [[mapping]] のキーを入力 (a, 1, SPACE …)")
             Bullet("かな: [[kana_mapping]] のかな文字を入力 (左手3音コードで行、右手音で列)")
+            Bullet("かな: ローマ字 (ka, shi など) を出す和音なら、かなに変換して入力します")
             Mono("[[kana_mapping]]")
             Mono("keys = [50, 53, 57, 61]   # か行 + D#4")
             Mono("keys = [44, 47, 51, 60]   # 編集キー + C4")
             Text(
                 "かなマッピングが未設定のときは内蔵の既定配列 (あ〜ん・濁音・半濁音・小書き・記号・数字) が使われます。" +
+                "未確定の文字は SPACE / ENTER で確定します。" +
                 "PC 版 pianotype は kana_mode と [[kana_mapping]] を読み飛ばすため、設定ファイルの受け渡しには影響しません。",
                 style = MaterialTheme.typography.bodySmall
             )

@@ -7,7 +7,7 @@ data class Mapping(
 
 data class Config(
     val midiDevice: String? = null,
-    val midiChannel: Int? = null,   // 1..16, null = 全チャンネル
+    val midiChannel: Int? = null,
     val handSplit: Int = 60,
     val requireBothHands: Boolean = true,
     val mapping: List<Mapping> = emptyList(),        // 英数モードのマッピング
