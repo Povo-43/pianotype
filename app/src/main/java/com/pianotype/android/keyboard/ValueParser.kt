@@ -50,6 +50,10 @@ object ValueParser {
             val text = if (shiftArmed) value.uppercase() else value
             return OutputAction.Text(text)
         }
+
+        // かな・記号などの非 ASCII 文字列はそのまま入力する (きゃ, ー など)。
+        if (value.any { it.code > 0x7F }) return OutputAction.Text(value)
+
         return null
     }
 
@@ -67,7 +71,9 @@ object ValueParser {
             if (modOk && (keyCode(rest.uppercase()) != null || rest.length == 1)) return true
         }
         if (keyCode(upper) != null) return true
-        return value.length == 1
+        if (value.length == 1) return true
+        // かな・記号などの非 ASCII 文字列
+        return value.any { it.code > 0x7F }
     }
 
     private fun charKeyCode(s: String): Int? {

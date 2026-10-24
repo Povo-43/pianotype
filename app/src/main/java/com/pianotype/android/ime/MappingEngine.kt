@@ -63,6 +63,7 @@ class MappingEngine(
 
     private fun findMapping(config: Config, heldNotes: List<Int>): Mapping? {
         val heldSet = heldNotes.toSet()
-        return config.mapping.firstOrNull { it.keys.toSet() == heldSet }
+        // かなモードでは kanaMapping、それ以外は mapping を使う。
+        return config.activeMapping.firstOrNull { it.keys.toSet() == heldSet }
     }
 }

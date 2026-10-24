@@ -27,7 +27,12 @@ class PianotypeImeService : InputMethodService() {
     private var statusView: TextView? = null
 
     private val configListener: (Config) -> Unit = { cfg ->
-        mainHandler.post { restartMidi(cfg) }
+        mainHandler.post {
+            // モード切替などでマッピングが変わったので、押下状態を作り直す。
+            engine?.reset()
+            restartMidi(cfg)
+            updateStatus()
+        }
     }
 
     override fun onCreate() {
@@ -39,11 +44,11 @@ class PianotypeImeService : InputMethodService() {
         ConfigRepository.load(this)
         engine = MappingEngine(
             configProvider = { ConfigRepository.current },
-            onToggle = { enabled ->
-                mainHandler.post { updateStatus(enabled) }
+            onToggle = { _ ->
+                mainHandler.post { updateStatus() }
             },
             onShiftArmed = {
-                mainHandler.post { statusView?.text = "Pianotype: SHIFT armed" }
+                mainHandler.post { showShiftArmed() }
             },
             onAction = { value, shift ->
                 mainHandler.post { handleAction(value, shift) }
@@ -80,7 +85,7 @@ class PianotypeImeService : InputMethodService() {
             ))
         }
 
-        engine?.let { updateStatus(it.isEnabled()) }
+        updateStatus()
         return row
     }
 
@@ -114,13 +119,25 @@ class PianotypeImeService : InputMethodService() {
         }.also { it.start() }
     }
 
-    private fun updateStatus(enabled: Boolean) {
+    private fun updateStatus() {
+        val enabled = engine?.isEnabled() == true
         statusView?.apply {
-            text = if (enabled) "Pianotype: ON" else "Pianotype: OFF"
+            text = "Pianotype: ${if (enabled) "ON" else "OFF"} / ${modeLabel()}"
             // 背景が暗いので、ONの時は明るい緑、OFFの時は明るいグレー
             setTextColor(if (enabled) 0xFF4CAF50.toInt() else 0xFFAAAAAA.toInt())
         }
     }
+
+    private fun showShiftArmed() {
+        val enabled = engine?.isEnabled() == true
+        statusView?.apply {
+            text = "Pianotype: ${if (enabled) "ON" else "OFF"} / SHIFT / ${modeLabel()}"
+            setTextColor(0xFF4CAF50.toInt())
+        }
+    }
+
+    private fun modeLabel(): String =
+        if (ConfigRepository.current.kanaMode) "かな" else "英数"
 
     private fun handleAction(value: String, shift: Boolean) {
         val ic = currentInputConnection ?: return

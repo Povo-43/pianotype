@@ -23,7 +23,7 @@ object ConfigRepository {
         val f = file(context)
         if (f.exists()) {
             runCatching {
-                cached = TomlConfig.parse(f.readText())
+                cached = ensureKanaMapping(TomlConfig.parse(f.readText()))
             }
         } else {
             // 初回起動: おすすめ設定を書き込む
@@ -47,10 +47,16 @@ object ConfigRepository {
 
     @Synchronized
     fun update(context: Context, config: Config) {
-        cached = config
-        file(context).writeText(TomlConfig.serialize(config))
+        val ensured = ensureKanaMapping(config)
+        cached = ensured
+        file(context).writeText(TomlConfig.serialize(ensured))
         notifyListeners()
     }
+
+    /** かなモードのマッピングが空なら、既定のかな配列を補う。 */
+    private fun ensureKanaMapping(config: Config): Config =
+        if (config.kanaMapping.isEmpty()) config.copy(kanaMapping = DefaultConfig.kanaMappings)
+        else config
 
     /** TOML テキストを直接ロードして保存。 */
     @Synchronized

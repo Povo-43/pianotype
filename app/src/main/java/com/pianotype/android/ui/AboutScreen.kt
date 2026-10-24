@@ -34,10 +34,11 @@ fun AboutContent() {
 
         Section("基本的な使い方") {
             Bullet("1. このアプリで MIDI デバイスとマッピングを設定")
-            Bullet("2. 「IME設定」から Pianotype を有効化")
-            Bullet("3. 任意のアプリのテキスト入力欄でキーボードを Pianotype に切り替え")
-            Bullet("4. TOGGLE に割り当てた和音を弾いて ON にする")
-            Bullet("5. ON の状態で他の和音を弾くと、対応する文字やキーが入力される")
+            Bullet("2. 入力モード (かな / 英数) を選ぶ")
+            Bullet("3. 「IME設定」から Pianotype を有効化")
+            Bullet("4. 任意のアプリのテキスト入力欄でキーボードを Pianotype に切り替え")
+            Bullet("5. TOGGLE に割り当てた和音を弾いて ON にする")
+            Bullet("6. ON の状態で他の和音を弾くと、対応する文字やキーが入力される")
         }
 
         Section("MIDI ノート番号の目安") {
@@ -48,6 +49,7 @@ fun AboutContent() {
         }
 
         Section("value に書けるもの") {
+            Mono("あ, きゃ, ー, ？      → かな (そのまま入力)")
             Mono("a, b, 1, ?            → 1文字")
             Mono("SPACE, ENTER, TAB     → 名前付きキー")
             Mono("F1 〜 F12, PAGEUP ...  → ファンクション/編集キー")
@@ -56,6 +58,20 @@ fun AboutContent() {
             Mono("CTRL+C, ALT+TAB       → ショートカット")
             Mono("TOGGLE                → タイピング ON/OFF")
             Mono("SHIFT                 → 次の1アクションだけ Shift")
+        }
+
+        Section("入力モード (かな / 英数)") {
+            Text("設定画面の「入力モード」で、かなと英数を切り替えられます。IME の表示に現在のモードが出ます。")
+            Bullet("英数: 既定の [[mapping]] のキーを入力 (a, 1, SPACE …)")
+            Bullet("かな: [[kana_mapping]] のかな文字を入力 (左手3音コードで行、右手音で列)")
+            Mono("[[kana_mapping]]")
+            Mono("keys = [50, 53, 57, 61]   # か行 + D#4")
+            Mono("keys = [44, 47, 51, 60]   # 編集キー + C4")
+            Text(
+                "かなマッピングが未設定のときは内蔵の既定配列 (あ〜ん・濁音・半濁音・小書き・記号・数字) が使われます。" +
+                "PC 版 pianotype は kana_mode と [[kana_mapping]] を読み飛ばすため、設定ファイルの受け渡しには影響しません。",
+                style = MaterialTheme.typography.bodySmall
+            )
         }
 
         Section("TOML 設定ファイル") {

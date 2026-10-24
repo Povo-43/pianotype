@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.pianotype.android.config.Config
@@ -52,6 +53,21 @@ fun SettingsContent(
     var heldNotes by remember { mutableStateOf<List<Int>>(emptyList()) }
     var log by remember { mutableStateOf<List<String>>(emptyList()) }
     var monitorListener by remember { mutableStateOf<MidiListener?>(null) }
+
+    // 現在のモードで使うマッピング (英数 / かな)
+    val activeMappings: List<Mapping> = config.activeMapping
+
+    fun setActiveMappings(list: List<Mapping>) {
+        config = if (config.kanaMode) config.copy(kanaMapping = list) else config.copy(mapping = list)
+        ConfigRepository.update(context, config)
+    }
+
+    fun setKanaMode(kana: Boolean) {
+        if (config.kanaMode == kana) return
+        config = config.copy(kanaMode = kana)
+        ConfigRepository.update(context, config)
+        statusMsg = if (kana) "かなモードに切り替えました" else "英数モードに切り替えました"
+    }
 
     DisposableEffect(Unit) {
         val l: (Config) -> Unit = { config = it }
@@ -139,6 +155,29 @@ fun SettingsContent(
         }
 
         Divider()
+
+        // ---------------- 入力モード ----------------
+        Text("入力モード", style = MaterialTheme.typography.titleMedium)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = !config.kanaMode,
+                onClick = { setKanaMode(false) },
+                label = { Text("英数 (a b c)") }
+            )
+            FilterChip(
+                selected = config.kanaMode,
+                onClick = { setKanaMode(true) },
+                label = { Text("かな (あ い う)") }
+            )
+        }
+        Text(
+            if (config.kanaMode) "かなモード: 和音が日本語のかな文字を入力します。"
+            else "英数モード: 和音が英数字・記号キーを入力します。",
+            style = MaterialTheme.typography.bodySmall
+        )
 
         // ---------------- MIDI モニター ----------------
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -256,7 +295,10 @@ fun SettingsContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("マッピング (${config.mapping.size})", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "マッピング (${if (config.kanaMode) "かな" else "英数"}: ${activeMappings.size})",
+                style = MaterialTheme.typography.titleMedium
+            )
             TextButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(4.dp))
@@ -264,10 +306,10 @@ fun SettingsContent(
             }
         }
 
-        if (config.mapping.isEmpty()) {
+        if (activeMappings.isEmpty()) {
             Text("(未登録)", style = MaterialTheme.typography.bodyMedium)
         } else {
-            config.mapping.forEachIndexed { idx, m ->
+            activeMappings.forEachIndexed { idx, m ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.padding(12.dp),
@@ -281,9 +323,8 @@ fun SettingsContent(
                             Icon(Icons.Default.Edit, contentDescription = "edit")
                         }
                         IconButton(onClick = {
-                            val newList = config.mapping.toMutableList().also { it.removeAt(idx) }
-                            config = config.copy(mapping = newList)
-                            ConfigRepository.update(context, config)
+                            val newList = activeMappings.toMutableList().also { it.removeAt(idx) }
+                            setActiveMappings(newList)
                         }) {
                             Icon(Icons.Default.Delete, contentDescription = "delete")
                         }
@@ -339,7 +380,7 @@ fun SettingsContent(
         AlertDialog(
             onDismissRequest = { showResetConfirm = false },
             title = { Text("おすすめ設定に戻す") },
-            text = { Text("現在のマッピング (${config.mapping.size}件) はすべて上書きされます。よろしいですか？") },
+            text = { Text("英数 (${config.mapping.size}件)・かな (${config.kanaMapping.size}件) のマッピングはすべて既定に戻されます。よろしいですか？") },
             confirmButton = {
                 TextButton(onClick = {
                     ConfigRepository.resetToDefault(context)
@@ -373,19 +414,142 @@ fun SettingsContent(
 
     if (showAddDialog || editingIndex != null) {
         MappingEditorDialog(
-            initial = editingIndex?.let { config.mapping[it] } ?: Mapping(emptyList(), ""),
+            initial = editingIndex?.let { activeMappings[it] } ?: Mapping(emptyList(), ""),
             context = context,
             config = config,
             onDismiss = { showAddDialog = false; editingIndex = null },
             onSave = { newMapping ->
-                val list = config.mapping.toMutableList()
+                val list = activeMappings.toMutableList()
                 val idx = editingIndex
                 if (idx == null) list.add(newMapping) else list[idx] = newMapping
-                config = config.copy(mapping = list)
-                ConfigRepository.update(context, config)
+                setActiveMappings(list)
                 showAddDialog = false
                 editingIndex = null
             },
         )
     }
+}
+
+@Composable
+private fun TomlEditorDialog(
+    initial: String,
+    onDismiss: () -> Unit,
+    onApply: (String) -> Unit,
+) {
+    var text by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("TOML") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 200.dp, max = 400.dp),
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
+            )
+        },
+        confirmButton = { TextButton(onClick = { onApply(text) }) { Text("読み込む") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("キャンセル") } },
+    )
+}
+
+@Composable
+private fun MappingEditorDialog(
+    initial: Mapping,
+    context: Context,
+    config: Config,
+    onDismiss: () -> Unit,
+    onSave: (Mapping) -> Unit,
+) {
+    var keysText by remember { mutableStateOf(initial.keys.joinToString(" ")) }
+    var value by remember { mutableStateOf(initial.value) }
+    var capturing by remember { mutableStateOf(false) }
+    var capturedNotes by remember { mutableStateOf<List<Int>>(emptyList()) }
+    var listener by remember { mutableStateOf<MidiListener?>(null) }
+
+    LaunchedEffect(capturing, config.midiDevice, config.midiChannel) {
+        if (capturing) {
+            capturedNotes = emptyList()
+            val l = MidiListener(context, config.midiDevice, config.midiChannel) { ev ->
+                when (ev) {
+                    is MidiEvent.NoteOn -> {
+                        capturedNotes = (capturedNotes + ev.note).distinct().sorted()
+                    }
+                    is MidiEvent.NoteOff -> {}
+                }
+            }.also { it.start() }
+            listener = l
+        } else {
+            listener?.close()
+            listener = null
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            listener?.close()
+            listener = null
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initial.keys.isEmpty()) "マッピング追加" else "マッピング編集") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("keys (MIDI note 番号、スペース区切り)", style = MaterialTheme.typography.labelMedium)
+                OutlinedTextField(
+                    value = keysText,
+                    onValueChange = { keysText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(
+                        onClick = { capturing = !capturing },
+                        colors = if (capturing) ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        ) else ButtonDefaults.buttonColors()
+                    ) {
+                        Text(if (capturing) "停止" else "MIDI でキャプチャ")
+                    }
+                    if (capturing) {
+                        Spacer(Modifier.width(8.dp))
+                        Text("録音中...")
+                    }
+                }
+                if (capturedNotes.isNotEmpty()) {
+                    Text("取得中: ${capturedNotes.joinToString(", ")}")
+                    TextButton(onClick = {
+                        keysText = capturedNotes.joinToString(" ")
+                    }) { Text("この和音を採用") }
+                }
+                Text("value (かな / 文字 / キー名 / TOGGLE / SHIFT / CTRL+F3 など)", style = MaterialTheme.typography.labelMedium)
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                if (value.isNotEmpty() && !ValueParser.isValid(value)) {
+                    Text("無効な値です", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = value.isNotEmpty() && ValueParser.isValid(value),
+                onClick = {
+                    val keys = keysText.split(" ", ",")
+                        .filter { it.isNotBlank() }
+                        .mapNotNull { it.toIntOrNull() }
+                        .sorted()
+                    onSave(Mapping(keys, value))
+                }
+            ) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("キャンセル") } },
+    )
 }

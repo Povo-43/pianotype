@@ -238,5 +238,51 @@ object DefaultConfig {
         value = "F12"
     """.trimIndent() + "\n"
 
-    fun parse(): Config = TomlConfig.parse(TOML)
+    /**
+     * かなモード用の既定マッピング。
+     *
+     * 左手で 3 音のコード（行）を押し、右手で 1 オクターブ内の音（列）を選ぶ。
+     * 右手の音は 60(C4)〜71(B4) の 12 音を使う。
+     *
+     *   あ行 [48,52,55] / か行 [50,53,57] / さ行 [52,55,59] / た行 [41,45,48]
+     *   な行 [43,47,50] / は行 [45,48,52] / ぱ・ま・や行 [47,50,53] / ら・わ行 [49,52,55]
+     *   編集 [44,47,51] / 数字 [46,49,53] / ファンクション [44,48,51]
+     */
+    val kanaMappings: List<Mapping> = buildList {
+        // 制御コマンド (英数モードと同じ位置に置く)
+        add(Mapping(listOf(33), "TOGGLE"))
+        add(Mapping(listOf(34), "SHIFT"))
+
+        fun row(left: List<Int>, values: List<String>) {
+            values.forEachIndexed { i, v ->
+                if (v.isEmpty()) return@forEachIndexed
+                add(Mapping((left + (60 + i)).sorted(), v))
+            }
+        }
+
+        // あ行 + 小書き母音 + 長音
+        row(listOf(48, 52, 55), listOf("あ","い","う","え","お","ぁ","ぃ","ぅ","ぇ","ぉ","ー","・"))
+        // か行 + 濁点
+        row(listOf(50, 53, 57), listOf("か","き","く","け","こ","が","ぎ","ぐ","げ","ご","ゔ"))
+        // さ行 + 濁点
+        row(listOf(52, 55, 59), listOf("さ","し","す","せ","そ","ざ","じ","ず","ぜ","ぞ","っ"))
+        // た行 + 濁点
+        row(listOf(41, 45, 48), listOf("た","ち","つ","て","と","だ","ぢ","づ","で","ど","゛","゜"))
+        // な行 + 小書きや行 + 繰り返し記号
+        row(listOf(43, 47, 50), listOf("な","に","ぬ","ね","の","ゃ","ゅ","ょ","ゝ","ゞ","ヽ","ヾ"))
+        // は行 + 濁点 + 半濁点(2)
+        row(listOf(45, 48, 52), listOf("は","ひ","ふ","へ","ほ","ば","び","ぶ","べ","ぼ","ぱ","ぴ"))
+        // 半濁点の残り + ま行 + や行
+        row(listOf(47, 50, 53), listOf("ぷ","ぺ","ぽ","ま","み","む","め","も","や","ゆ","よ","「"))
+        // ら行 + わ行 + 句読点
+        row(listOf(49, 52, 55), listOf("ら","り","る","れ","ろ","わ","を","ん","、","。","？","！"))
+        // 編集キー
+        row(listOf(44, 47, 51), listOf("SPACE","ENTER","BACKSPACE","TAB","ESC","LEFT","RIGHT","UP","DOWN","HOME","END","DELETE"))
+        // 数字
+        row(listOf(46, 49, 53), listOf("0","1","2","3","4","5","6","7","8","9","PAGEUP","PAGEDOWN"))
+        // ファンクションキー
+        row(listOf(44, 48, 51), listOf("F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"))
+    }
+
+    fun parse(): Config = TomlConfig.parse(TOML).copy(kanaMapping = kanaMappings)
 }
