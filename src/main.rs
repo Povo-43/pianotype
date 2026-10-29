@@ -1,8 +1,10 @@
 mod config;
+mod default_config;
 mod engine;
 mod gui;
 mod keymap;
 mod midi;
+mod rtpmidi;
 
 use eframe::egui;
 

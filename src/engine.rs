@@ -8,6 +8,8 @@ pub enum Action {
     Toggle(bool),
     /// SHIFT コードが成立し、次コマンドが shift 状態で送られる
     ShiftArmed,
+    /// KANA コードが成立。PC 版では OS の IME 切替キーを送出する
+    KanaIme,
     /// 通常コマンド: (value, shifted)
     SendKey(String, bool),
     /// 何も起きない
@@ -72,6 +74,11 @@ impl MappingEngine {
                     Action::Ignored
                 }
             }
+            // Android 版と同じ: モード切替はエンジンの外 (PC 版では IME キー送出)
+            "KANA" => {
+                self.shift_armed = false;
+                Action::KanaIme
+            }
             _ => {
                 if self.enabled {
                     let shifted = self.shift_armed;
@@ -86,9 +93,9 @@ impl MappingEngine {
 
     pub fn on_note_off(&mut self, note: u8) {
         self.held.remove(&note);
-        if self.held.is_empty() {
-            self.emitted.clear();
-        }
+        // Android 版に合わせ、1 音でも離したら発火済みフラグをクリアする
+        // (和音を離し直せば再度発火できる)
+        self.emitted.clear();
     }
 
     pub fn reset(&mut self) {
@@ -98,7 +105,7 @@ impl MappingEngine {
     }
 }
 
-fn find_mapping(config: &Config, held: &[u8]) -> Option<&Mapping> {
+fn find_mapping<'a>(config: &'a Config, held: &[u8]) -> Option<&'a Mapping> {
     let held_set: HashSet<u8> = held.iter().copied().collect();
     config
         .mappings
@@ -117,6 +124,12 @@ mod tests {
             midi_channel: None,
             hand_split: 60,
             require_both_hands: true,
+            kana_mode: false,
+            rtp_midi_enabled: false,
+            rtp_midi_host: None,
+            rtp_midi_port: 5004,
+            rtp_midi_channel: None,
+            rtp_midi_name: "Pianotype PC".into(),
             mappings: vec![
                 Mapping {
                     keys: vec![60, 64, 67],
@@ -130,7 +143,12 @@ mod tests {
                     keys: vec![60, 63, 67],
                     value: "ENTER".into(),
                 },
+                Mapping {
+                    keys: vec![35],
+                    value: "KANA".into(),
+                },
             ],
+            kana_mappings: Vec::new(),
         }
     }
 
@@ -156,17 +174,42 @@ mod tests {
         let mut e = MappingEngine::new();
         e.on_note_on(60, &c);
         e.on_note_on(64, &c);
-        e.on_note_on(67, &c);
+        e.on_note_on(67, &c); // TOGGLE → 有効化
         e.reset();
+
+        // 有効な状態で SHIFT コード
+        assert_eq!(e.on_note_on(62, &c), Action::Ignored);
+        assert_eq!(e.on_note_on(65, &c), Action::Ignored);
+        assert_eq!(e.on_note_on(69, &c), Action::ShiftArmed);
+        assert!(e.is_shift_armed());
+    }
+
+    #[test]
+    fn kana_command_fires_when_enabled() {
+        let c = cfg();
+        let mut e = MappingEngine::new();
         e.on_note_on(60, &c);
         e.on_note_on(64, &c);
-        e.on_note_on(67, &c);
+        e.on_note_on(67, &c); // TOGGLE → enabled
+        e.reset();
 
-        // reset 後は enabled 保持のため、もう一度 TOGGLE はテスト外。
-        let mut e2 = MappingEngine::new();
-        e2.on_note_on(60, &c);
-        e2.on_note_on(64, &c);
-        e2.on_note_on(67, &c);
-        assert!(e2.is_enabled());
+        e.on_note_on(35, &c);
+        assert_eq!(e.held_notes(), vec![35]);
+        // KANA は有効時のみ
+        e.on_note_off(35);
+        assert_eq!(e.on_note_on(35, &c), Action::KanaIme);
+    }
+
+    #[test]
+    fn repressing_a_note_retriggers_after_release() {
+        // Android 版と同じ: ノートを離すと emitted がクリアされる
+        let c = cfg();
+        let mut e = MappingEngine::new();
+        e.on_note_on(60, &c);
+        e.on_note_on(64, &c);
+        e.on_note_on(67, &c); // TOGGLE
+        e.on_note_off(67);
+        // 67 を離したのでもう一度押すと発火する
+        assert_eq!(e.on_note_on(67, &c), Action::Toggle(false));
     }
 }
