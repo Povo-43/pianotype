@@ -9,8 +9,9 @@ import android.media.midi.MidiReceiver
 import java.io.Closeable
 
 sealed class MidiEvent {
-    data class NoteOn(val note: Int) : MidiEvent()
-    data class NoteOff(val note: Int) : MidiEvent()
+    /** channel は 1..16 */
+    data class NoteOn(val note: Int, val velocity: Int = 64, val channel: Int = 1) : MidiEvent()
+    data class NoteOff(val note: Int, val velocity: Int = 0, val channel: Int = 1) : MidiEvent()
 }
 
 /**
@@ -38,7 +39,7 @@ class MidiListener(
             device = dev
             val p = dev.openOutputPort(0) ?: return@openDevice
             port = p
-            val wantChannel = channelFilter?.let { it - 1 }  // 1..16 -> 0..15
+            val wantChannel = channelFilter                 // 1..16 (受信側も 1 始まりに正規化)
             val r = object : MidiReceiver() {
                 override fun onSend(data: ByteArray, offset: Int, count: Int, timestamp: Long) {
                     var i = offset
@@ -46,14 +47,14 @@ class MidiListener(
                     while (i + 2 < end) {
                         val status = data[i].toInt() and 0xFF
                         val type = status and 0xF0
-                        val channel = status and 0x0F
+                        val channel = (status and 0x0F) + 1   // 1..16
                         val note = data[i + 1].toInt() and 0x7F
                         val vel = data[i + 2].toInt() and 0x7F
                         if (wantChannel == null || channel == wantChannel) {
                             if (type == 0x90 && vel > 0) {
-                                callback(MidiEvent.NoteOn(note))
+                                callback(MidiEvent.NoteOn(note, vel, channel))
                             } else if (type == 0x80 || (type == 0x90 && vel == 0)) {
-                                callback(MidiEvent.NoteOff(note))
+                                callback(MidiEvent.NoteOff(note, vel, channel))
                             }
                         }
                         i += 3

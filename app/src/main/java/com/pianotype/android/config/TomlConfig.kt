@@ -18,6 +18,12 @@ object TomlConfig {
         val bothHands = result.getBoolean("require_both_hands") ?: true
         val kanaMode = result.getBoolean("kana_mode") ?: false
 
+        val rtpEnabled = result.getBoolean("rtp_midi_enabled") ?: false
+        val rtpHost = result.getString("rtp_midi_host")?.trim()?.takeIf { it.isNotEmpty() }
+        val rtpPort = (result.getLong("rtp_midi_port") ?: 5004L).toInt().coerceIn(1, 65534)
+        val rtpChannel = (result.getLong("rtp_midi_channel"))?.toInt()?.takeIf { it in 1..16 }
+        val rtpName = result.getString("rtp_midi_name")?.takeIf { it.isNotBlank() } ?: "Pianotype Android"
+
         return Config(
             midiDevice = device,
             midiChannel = channel,
@@ -26,6 +32,11 @@ object TomlConfig {
             mapping = parseMappings(result.getArray("mapping")),
             kanaMapping = parseMappings(result.getArray("kana_mapping")),
             kanaMode = kanaMode,
+            rtpMidiEnabled = rtpEnabled,
+            rtpMidiHost = rtpHost,
+            rtpMidiPort = rtpPort,
+            rtpMidiChannel = rtpChannel,
+            rtpMidiName = rtpName,
         )
     }
 
@@ -51,6 +62,13 @@ object TomlConfig {
         appendLine("hand_split = ${config.handSplit}")
         appendLine("require_both_hands = ${config.requireBothHands}")
         appendLine("kana_mode = ${config.kanaMode}")
+        appendLine()
+        // RTP MIDI 送信 (PC 版はこれらのキーを無視するので互換性に影響しない)
+        appendLine("rtp_midi_enabled = ${config.rtpMidiEnabled}")
+        config.rtpMidiHost?.let { appendLine("rtp_midi_host = \"${escape(it)}\"") }
+        appendLine("rtp_midi_port = ${config.rtpMidiPort}")
+        config.rtpMidiChannel?.let { appendLine("rtp_midi_channel = $it") }
+        appendLine("rtp_midi_name = \"${escape(config.rtpMidiName)}\"")
         appendLine()
         appendMappings("mapping", config.mapping)
         appendMappings("kana_mapping", config.kanaMapping)

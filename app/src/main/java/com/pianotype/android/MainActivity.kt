@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.pianotype.android.config.AppPreferences
 import com.pianotype.android.config.ConfigRepository
+import com.pianotype.android.rtpmidi.RtpMidiService
 import com.pianotype.android.ui.MainScreen
 import com.pianotype.android.ui.PianotypeTheme
 
@@ -22,6 +23,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ConfigRepository.load(this)
+        // RTP MIDI 送信が有効なら常駐サービスを起動
+        if (ConfigRepository.current.rtpMidiEnabled) {
+            RtpMidiService.start(this)
+        }
         setContent {
             val dark = isSystemInDarkTheme()
 

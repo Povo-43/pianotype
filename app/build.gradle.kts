@@ -32,6 +32,9 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true   // JVM テストで android.util.Log を無効化
+    }
     buildFeatures {
         compose = true
     }
@@ -51,4 +54,5 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("org.tomlj:tomlj:1.1.1")
+    testImplementation("junit:junit:4.13.2")
 }
