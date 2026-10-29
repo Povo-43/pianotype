@@ -95,6 +95,27 @@ rtp_midi_name = "Pianotype PC"   # セッション名
 | Linux (rtpmidid) | `rtpmidid` が待ち受けている 5004 へ host 指定、または逆に PC 側を待ち受けに |
 | Android | MIDI over BLE/RTP 対応アプリから PC の IP:5004 へ接続 |
 
+## リリース (GitHub Actions)
+
+`v*` タグを push すると、Windows / Linux 向けバイナリが自動ビルドされ、
+GitHub Release にアセットとして登録されます:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+| アセット | 内容 |
+|---|---|
+| `pianotype-pc-<tag>-windows-x64.zip` | Windows (x64, MSVC) の `pianotype.exe` |
+| `pianotype-pc-<tag>-linux-x64.tar.gz` | Linux (x64, Ubuntu 22.04 ビルド) の `pianotype` |
+
+Linux バイナリの実行には `libasound.so.2` (ALSA) と `libxdo.so.3` が必要です
+(`sudo apt install libasound2 libxdo3`)。
+
+また `master` への push / PR 時には両 OS で `cargo test` + ビルドの
+チェック (`.github/workflows/build.yml`) が走ります。
+
 ## 開発
 
 ```bash
