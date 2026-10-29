@@ -1,11 +1,15 @@
 package com.pianotype.android.ui
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -16,6 +20,7 @@ import kotlinx.coroutines.launch
 
 private sealed class Page(val label: String, val icon: ImageVector) {
     data object Settings : Page("設定", Icons.Default.Settings)
+    data object Advanced : Page("詳細設定", Icons.Default.Tune)
     data object About : Page("このアプリについて", Icons.Default.Info)
 }
 
@@ -33,6 +38,9 @@ fun MainScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    // 詳細設定中はシステムバックでメイン設定へ戻る
+    BackHandler(enabled = current === Page.Advanced) { current = Page.Settings }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -45,7 +53,10 @@ fun MainScreen(
                 )
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
-                DrawerItem(Page.Settings.label, Page.Settings.icon, current === Page.Settings) {
+                DrawerItem(
+                    Page.Settings.label, Page.Settings.icon,
+                    selected = current === Page.Settings || current === Page.Advanced,
+                ) {
                     current = Page.Settings
                     scope.launch { drawerState.close() }
                 }
@@ -63,18 +74,33 @@ fun MainScreen(
                         Text(
                             when (current) {
                                 is Page.Settings -> "Pianotype 設定"
+                                is Page.Advanced -> "詳細設定"
                                 is Page.About -> "このアプリについて"
                             }
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "メニュー")
+                        IconButton(onClick = {
+                            if (current === Page.Advanced) {
+                                current = Page.Settings
+                            } else {
+                                scope.launch { drawerState.open() }
+                            }
+                        }) {
+                            Icon(
+                                if (current === Page.Advanced) Icons.AutoMirrored.Filled.ArrowBack
+                                else Icons.Default.Menu,
+                                contentDescription = if (current === Page.Advanced) "戻る" else "メニュー",
+                            )
                         }
                     },
                     actions = {
                         if (current === Page.Settings) {
-                            TextButton(onClick = onOpenImeSettings) { Text("IME設定") }
+                            TextButton(onClick = onOpenImeSettings) {
+                                Icon(Icons.Default.Keyboard, contentDescription = null, Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("IME設定")
+                            }
                         }
                     }
                 )
@@ -87,6 +113,14 @@ fun MainScreen(
             ) {
                 when (current) {
                     is Page.Settings -> SettingsContent(
+                        context = context,
+                        themeColor = themeColor,
+                        bgColor = bgColor,
+                        onThemeColorChange = onThemeColorChange,
+                        onBgColorChange = onBgColorChange,
+                        onOpenAdvanced = { current = Page.Advanced },
+                    )
+                    is Page.Advanced -> AdvancedSettingsContent(
                         context = context,
                         themeColor = themeColor,
                         bgColor = bgColor,

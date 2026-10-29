@@ -29,7 +29,8 @@ APK は `app/build/outputs/apk/debug/app-debug.apk` に生成されます。
 
 ## 使い方
 
-1. アプリを起動 → 設定画面で MIDI デバイス、hand_split、マッピングを設定
+1. アプリを起動 → 設定画面で MIDI デバイス、入力モード、RTP MIDI 送信、マッピングを設定
+   - 見た目・チャンネル・MIDI モニター・TOML 編集などは「詳細設定」ページにまとまっています
 2. 「IME設定」ボタン → システム設定で Pianotype を有効化
 3. 任意のアプリでテキストフィールドをタップ → キーボード切替で Pianotype を選ぶ
 4. MIDI キーボードで TOGGLE に割り当てた和音を弾くと ON/OFF が切り替わる
@@ -54,6 +55,20 @@ APK は `app/build/outputs/apk/debug/app-debug.apk` に生成されます。
   - `kana_mode = true / false` で現在のモードを記録します
   - PC 版 pianotype はこの 2 項目 + `[[kana_mapping]]` を読み飛ばすため、設定ファイルの受け渡しには影響しません
 - `value` にかな文字 (1 文字だけでなく `きゃ` のような複数文字) を指定すればそのまま入力されます
+
+## RTP MIDI 送信 (MIDI センダー)
+
+設定画面の「RTP MIDI 送信」を有効にすると、接続した MIDI キーボードの Note On/Off を
+RTP-MIDI (AppleMIDI) プロトコルでネットワークへリアルタイム転送します。
+スマホが「MIDI キーボード ↔ ネットワーク」のワイヤレスブリッジになります。
+
+- macOS の「オーディオ MIDI 設定 → ネットワーク」、Linux の `rtpmidid`、Windows の `rtpMIDI` ドライバと相互接続できます
+- **接続先 IP + ポート (既定 5004)** を指定するとスマホから能動的にセッションを張ります (INV → OK ハンドシェイク、CK 時計同期に対応)
+- スマホ側でも同じポートで待ち受けるため、Mac 側からスマホへ接続することもできます
+- 転送はフォアグラウンドサービス (常駐・通知表示) が行います。IME を使っていなくても鍵盤を弾けば転送されます
+- 「送信チャンネル」で転送時の MIDI チャンネルを強制できます (未指定なら受信チャンネルのまま)
+- TOML キー: `rtp_midi_enabled`, `rtp_midi_host`, `rtp_midi_port`, `rtp_midi_channel`, `rtp_midi_name`
+  (PC 版 pianotype はこれらのキーを無視するため、設定ファイルの受け渡しには影響しません)
 
 ## 制限事項
 
