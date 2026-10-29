@@ -53,7 +53,7 @@ jobs:
         shell: pwsh
         run: |
           $name = "pianotype-pc-${env:GITHUB_REF_NAME}-windows-x64"
-          New-Item -ItemType Directory -Path dist | Out-Null
+          New-Item -ItemType Directory -Path "dist/$name" -Force | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/pianotype.exe" "dist/$name/pianotype.exe"
           Compress-Archive -Path "dist/$name" -DestinationPath "dist/$name.zip"
           Get-ChildItem dist
