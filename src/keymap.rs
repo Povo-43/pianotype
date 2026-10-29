@@ -176,45 +176,60 @@ fn normalize_numpad_name(name: &str) -> &str {
 fn function_key(n: &str) -> Option<Key> {
     if n.len() >= 2 && (n.starts_with('F') || n.starts_with('f')) {
         let num: u32 = n[1..].parse().ok()?;
-        if (1..=35).contains(&num) {
-            return Some(match num {
-                1 => Key::F1,
-                2 => Key::F2,
-                3 => Key::F3,
-                4 => Key::F4,
-                5 => Key::F5,
-                6 => Key::F6,
-                7 => Key::F7,
-                8 => Key::F8,
-                9 => Key::F9,
-                10 => Key::F10,
-                11 => Key::F11,
-                12 => Key::F12,
-                13 => Key::F13,
-                14 => Key::F14,
-                15 => Key::F15,
-                16 => Key::F16,
-                17 => Key::F17,
-                18 => Key::F18,
-                19 => Key::F19,
-                20 => Key::F20,
-                21 => Key::F21,
-                22 => Key::F22,
-                23 => Key::F23,
-                24 => Key::F24,
-                25 => Key::F25,
-                26 => Key::F26,
-                27 => Key::F27,
-                28 => Key::F28,
-                29 => Key::F29,
-                30 => Key::F30,
-                31 => Key::F31,
-                32 => Key::F32,
-                33 => Key::F33,
-                34 => Key::F34,
-                _ => Key::F35,
-            });
+        if !(1..=35).contains(&num) {
+            return None;
         }
+        // F1..F24 は全プラットフォーム共通、F25..F35 は Linux/X11 のみ
+        return Some(match num {
+            1 => Key::F1,
+            2 => Key::F2,
+            3 => Key::F3,
+            4 => Key::F4,
+            5 => Key::F5,
+            6 => Key::F6,
+            7 => Key::F7,
+            8 => Key::F8,
+            9 => Key::F9,
+            10 => Key::F10,
+            11 => Key::F11,
+            12 => Key::F12,
+            13 => Key::F13,
+            14 => Key::F14,
+            15 => Key::F15,
+            16 => Key::F16,
+            17 => Key::F17,
+            18 => Key::F18,
+            19 => Key::F19,
+            20 => Key::F20,
+            21 => Key::F21,
+            22 => Key::F22,
+            23 => Key::F23,
+            24 => Key::F24,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            25 => Key::F25,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            26 => Key::F26,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            27 => Key::F27,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            28 => Key::F28,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            29 => Key::F29,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            30 => Key::F30,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            31 => Key::F31,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            32 => Key::F32,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            33 => Key::F33,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            34 => Key::F34,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            35 => Key::F35,
+            // Windows / macOS では F24 まで
+            _ => return None,
+        });
     }
     None
 }
