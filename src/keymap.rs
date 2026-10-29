@@ -331,9 +331,18 @@ mod tests {
         assert!(matches!(named_key("PAGE-UP"), Some(Key::PageUp)));
         assert!(matches!(named_key("F1"), Some(Key::F1)));
         assert!(matches!(named_key("f12"), Some(Key::F12)));
-        // Numpad はプラットフォーム別に解決される (Linux/macOS は Key::Other)
-        assert!(matches!(named_key("NUMPAD5"), Some(Key::Other(_))));
-        assert!(matches!(named_key("KP9"), Some(Key::Other(_))));
+        // Numpad はプラットフォーム別に解決される
+        // (Windows は専用 variant、Linux/macOS は Key::Other)
+        #[cfg(target_os = "windows")]
+        {
+            assert!(matches!(named_key("NUMPAD5"), Some(Key::Numpad5)));
+            assert!(matches!(named_key("KP9"), Some(Key::Numpad9)));
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            assert!(matches!(named_key("NUMPAD5"), Some(Key::Other(_))));
+            assert!(matches!(named_key("KP9"), Some(Key::Other(_))));
+        }
         assert!(matches!(named_key("VOLUMEUP"), Some(Key::VolumeUp)));
         assert!(matches!(named_key("MUTE"), Some(Key::VolumeMute)));
         assert!(matches!(
@@ -349,9 +358,14 @@ mod tests {
     #[test]
     fn function_keys_range() {
         assert!(function_key("F1").is_some());
-        assert!(function_key("F35").is_some());
+        assert!(function_key("F24").is_some());
         assert!(function_key("F36").is_none());
         assert!(function_key("F0").is_none());
         assert!(function_key("FX").is_none());
+        // F25..F35 は Linux/X11 のみ
+        #[cfg(all(unix, not(target_os = "macos")))]
+        assert!(function_key("F35").is_some());
+        #[cfg(not(all(unix, not(target_os = "macos"))))]
+        assert!(function_key("F35").is_none());
     }
 }
