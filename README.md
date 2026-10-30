@@ -1,7 +1,17 @@
-# PianoType PC
+# PianoType
 
-MIDI キーボードの和音を PC 上のキー入力に変換するツールです。
-`pianotype_mobile` (Android 版 IME) と **同じ `pianotype.toml`** を読み書きします。
+MIDI キーボードの和音をキー入力に変換するツール集です。
+
+| ディレクトリ | 内容 | CI |
+|---|---|---|
+| `/` (このリポジトリ直下) | PC 版 (Rust) — Windows / macOS / Linux | Build PC |
+| [`mobile/`](mobile/) | Android 版 IME (Kotlin + NDK / OpenWnn) | Build Android APK |
+
+両者は **同じ `pianotype.toml`** を読み書きします。
+
+---
+
+## PianoType PC
 
 ![platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 
