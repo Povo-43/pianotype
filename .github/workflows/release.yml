@@ -67,6 +67,82 @@ jobs:
           tar czf "dist/$name.tar.gz" -C dist "$name"
           ls -la dist
 
+      - name: Build installer (Windows, Inno Setup)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v',''
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' `
+            "/DVersion=$version" `
+            "/DTag=${{ github.ref_name }}" `
+            "/DBin=target\${{ matrix.target }}\release\pianotype.exe" `
+            "packaging\pianotype.iss"
+          Get-ChildItem dist
+
+      - name: Build installer (Linux, deb)
+        if: runner.os == 'Linux'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # タグ以外 (master など) の場合はセマンティックバージョンにしないと
+          # deb にできないので擬似バージョンを使う
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+~.a-zA-Z0-9]*)$ ]]; then
+            VERSION="0.0.0+$(git rev-parse --short HEAD)"
+          fi
+          mkdir -p pkg/DEBIAN pkg/usr/bin
+          cp "target/${{ matrix.target }}/release/pianotype" pkg/usr/bin/pianotype
+          INSTALLED_SIZE=$(du -sk pkg/usr | cut -f1)
+          cat > pkg/DEBIAN/control <<EOF
+          Package: pianotype
+          Version: ${VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Povo-43 <Povo-43@users.noreply.github.com>
+          Installed-Size: ${INSTALLED_SIZE}
+          Homepage: https://github.com/Povo-43/pianotype
+          Description: MIDI キーボードの和音を PC キー入力に変換するツール
+          EOF
+          dpkg-deb --build pkg "dist/pianotype-pc-${GITHUB_REF_NAME}-linux-x64.deb"
+          ls -la dist
+
+      - name: Build installer (Linux, AppImage)
+        if: runner.os == 'Linux'
+        run: |
+          curl -fsSL -o appimagetool.AppImage https://github.com/AppImage/appimagetool/releases/latest/download/appimagetool-x86_64.AppImage
+          chmod +x appimagetool.AppImage
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
+
+          cp "target/${{ matrix.target }}/release/pianotype" AppDir/usr/bin/
+
+          # 単一バイナリの CLI/GUI アプリなので AppRun は単純に exec するだけ
+          cat > AppDir/AppRun <<'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/bin/pianotype" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+
+          cat > AppDir/usr/share/applications/pianotype.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=PianoType
+          Exec=pianotype
+          Icon=pianotype
+          Categories=Audio;Midi;Utility;
+          EOF
+
+          cat > AppDir/usr/share/icons/hicolor/scalable/apps/pianotype.svg <<'EOF'
+          <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+            <rect width="128" height="128" rx="24" fill="#1e1e2e"/>
+            <text x="64" y="88" font-family="sans-serif" font-size="64" font-weight="bold" fill="#89b4fa" text-anchor="middle">P</text>
+          </svg>
+          EOF
+
+          cp AppDir/usr/share/icons/hicolor/scalable/apps/pianotype.svg AppDir/.DirIcon
+
+          ./appimagetool.AppImage --appimage-extract-and-run AppDir "dist/pianotype-pc-${GITHUB_REF_NAME}-linux-x64.AppImage"
+          ls -la dist
+
       - name: Upload Artifact (every run)
         uses: actions/upload-artifact@v4
         with:

@@ -27,6 +27,8 @@ GUI (egui) でデバイス選択・マッピング編集・設定ファイルの
 cargo build --release
 ```
 
+[Release](https://github.com/Povo-43/pianotype/releases) から Windows 向けインストーラー (`.exe`) / `.zip`、Linux 向け `.deb` / `.AppImage` / `.tar.gz` が入手できます (タグ push で自動ビルド)。
+
 ### Linux の依存パッケージ
 
 ```bash
