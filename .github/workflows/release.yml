@@ -1,4 +1,4 @@
-name: Release PC binaries
+name: Release binaries (PC / Android)
 
 on:
   push:
@@ -78,4 +78,59 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
+          generate_release_notes: true
+
+  # Android 版 APK も同じ Release に含める。
+  # PC ジョブの後に実行して Release が先に存在する状態で アップロードする。
+  android:
+    name: Build (Android)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # Release 作成に必要
+    needs: build
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # かな漢字変換エンジン (OpenWnn) のネイティブビルドに必要
+      - name: Install NDK and CMake
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;26.3.11579264" "cmake;3.22.1" > /dev/null
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Package (Android)
+        run: |
+          mkdir -p ../dist
+          cp app/build/outputs/apk/debug/*.apk "../dist/pianotype-android-${GITHUB_REF_NAME}.apk"
+          ls -la ../dist
+
+      - name: Upload Artifact (every run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pianotype-android
+          path: dist/*
+
+      - name: Upload to Release (only on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/pianotype-android-*.apk
           generate_release_notes: true
