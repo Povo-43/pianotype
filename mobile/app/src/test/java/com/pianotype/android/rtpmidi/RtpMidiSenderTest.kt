@@ -6,12 +6,31 @@ import org.junit.Test
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
+import java.net.SocketTimeoutException
 
 /**
  * RtpMidiSender のプロトコル実装を、実 UDP ソケットを使う簡易 AppleMIDI ピア
  * (rtpmidid / macOS のふり) と対話させて検証する結合テスト。
  */
 class RtpMidiSenderTest {
+
+    // ループバック UDP でも CI 高負荷時はパケットが落ちたり、受信スレッドの
+    // スケジュール遅延で soTimeout を超えることがあるため数回リトライする
+    private val receiveAttempts = 3
+
+    /** SocketTimeoutException を数回までリトライして receive する */
+    private fun DatagramSocket.receiveWithRetry(p: DatagramPacket) {
+        var last: SocketTimeoutException? = null
+        repeat(receiveAttempts) {
+            try {
+                receive(p)
+                return
+            } catch (e: SocketTimeoutException) {
+                last = e
+            }
+        }
+        throw last!!
+    }
 
     // ------------------------------------------------------------------
     // 簡易 AppleMIDI ピア
@@ -31,7 +50,7 @@ class RtpMidiSenderTest {
         fun receive(socket: DatagramSocket, cmd: String): Packet {
             val buf = ByteArray(2048)
             val p = DatagramPacket(buf, buf.size)
-            socket.receive(p)
+            socket.receiveWithRetry(p)
             val len = p.length
             assertEquals(0xFFFF, ((buf[0].toInt() and 0xFF) shl 8) or (buf[1].toInt() and 0xFF))
             assertEquals(cmd, String(buf, 2, 2, Charsets.US_ASCII))
@@ -218,7 +237,7 @@ class RtpMidiSenderTest {
     private fun recvRtp(socket: DatagramSocket): RtpMidi {
         val buf = ByteArray(2048)
         val p = DatagramPacket(buf, buf.size)
-        socket.receive(p)
+        socket.receiveWithRetry(p)
         val len = p.length
         assertEquals(128, buf[0].toInt() and 0xFF)
         assertEquals(0x61, buf[1].toInt() and 0xFF)
