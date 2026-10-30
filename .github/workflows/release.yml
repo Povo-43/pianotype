@@ -75,7 +75,7 @@ jobs:
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' `
             "/DVersion=$version" `
             "/DTag=${{ github.ref_name }}" `
-            "/DBin=target\${{ matrix.target }}\release\pianotype.exe" `
+            "/DBin=${{ github.workspace }}\target\${{ matrix.target }}\release\pianotype.exe" `
             "packaging\pianotype.iss"
           Get-ChildItem dist
 
@@ -107,12 +107,27 @@ jobs:
 
       - name: Build installer (Linux, AppImage)
         if: runner.os == 'Linux'
+        env:
+          # appimagetool がアーキテクチャを推定できない場合に備えて明示する
+          ARCH: x86_64
         run: |
           curl -fsSL -o appimagetool.AppImage https://github.com/AppImage/appimagetool/releases/latest/download/appimagetool-x86_64.AppImage
           chmod +x appimagetool.AppImage
           mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
 
           cp "target/${{ matrix.target }}/release/pianotype" AppDir/usr/bin/
+
+          # appimagetool は AppDir 直下の .desktop を要求するため
+          # ここに置き、配置規約に従い usr/share/applications にも同じ物を置く
+          cat > AppDir/pianotype.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=PianoType
+          Exec=pianotype
+          Icon=pianotype
+          Categories=AudioVideo;Audio;Midi;
+          EOF
+          cp AppDir/pianotype.desktop AppDir/usr/share/applications/
 
           # 単一バイナリの CLI/GUI アプリなので AppRun は単純に exec するだけ
           cat > AppDir/AppRun <<'EOF'
@@ -121,15 +136,6 @@ jobs:
           exec "$HERE/usr/bin/pianotype" "$@"
           EOF
           chmod +x AppDir/AppRun
-
-          cat > AppDir/usr/share/applications/pianotype.desktop <<'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=PianoType
-          Exec=pianotype
-          Icon=pianotype
-          Categories=Audio;Midi;Utility;
-          EOF
 
           cat > AppDir/usr/share/icons/hicolor/scalable/apps/pianotype.svg <<'EOF'
           <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
