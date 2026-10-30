@@ -8,12 +8,20 @@ android {
     namespace = "com.pianotype.android"
     compileSdk = 34
 
+    // OpenWnn dictionary engine (仮名漢字変換) のネイティブビルドに使用
+    ndkVersion = "26.3.11579264"
+
     defaultConfig {
         applicationId = "com.pianotype.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+
+        // OpenWnn 変換エンジン + 日本語辞書 (仮名漢字変換用)
+        ndk {
+            abiFilters += setOf("armeabi-v7a", "arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -37,6 +45,13 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    // OpenWnn のネイティブ辞書エンジン (かな漢字変換)
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"

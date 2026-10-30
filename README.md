@@ -56,6 +56,25 @@ APK は `app/build/outputs/apk/debug/app-debug.apk` に生成されます。
   - PC 版 pianotype はこの 2 項目 + `[[kana_mapping]]` を読み飛ばすため、設定ファイルの受け渡しには影響しません
 - `value` にかな文字 (1 文字だけでなく `きゃ` のような複数文字) を指定すればそのまま入力されます
 
+### かな漢字変換 (日本語 IME と同じ方式)
+
+かなモードでは内蔵の **OpenWnn** かな漢字変換エンジン
+(AOSP `platform/packages/inputmethods/OpenWnn`, © OMRON SOFTWARE Co., Ltd., Apache License 2.0) を使って、
+日本語 IME と同じような変換ができます。
+ソースは `app/src/main/java/jp/co/omronsoft/openwnn/` と `app/src/main/cpp/` 以下に同梱しています (ライセンスは `app/src/main/cpp/NOTICE.OpenWnn`)。
+
+1. ローマ字の和音を弾くと、その場で平仮名に変換されて composing (未確定文字) として表示されます
+   (例: `k` `y` `o` `u` → `きょう`)
+2. `SPACE` と同じ和音 (既定の kana_mapping では `SPACE`) を弾くと連文節変換します
+   (例: `きょうはいいてんき` → `今日はいい天気` / `今日 は いい 天気` に文節分割)
+3. 変換後の `SPACE` は対象文節の次の候補に切り替えます。候補一周で左隣の文節へ移ります
+4. `LEFT` / `RIGHT` (`OutputAction.Key` の矢印キーを出す和音を `[[kana_mapping]]` に設定) で
+   対象文節を移動できます
+5. `BACKSPACE` で変換をやめて (元の平仮名に戻ってから末尾 1 文字ずつ消えます)、
+   `ENTER` でその場の文字列を確定します。
+
+辞書がまだロードされていない間や変換に失敗したときは、従来どおり平仮名のまま SPACE で確定します。
+
 ## RTP MIDI 送信 (MIDI センダー)
 
 設定画面の「RTP MIDI 送信」を有効にすると、接続した MIDI キーボードの Note On/Off を

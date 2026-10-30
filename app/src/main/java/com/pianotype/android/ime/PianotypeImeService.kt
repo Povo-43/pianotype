@@ -24,13 +24,14 @@ class PianotypeImeService : InputMethodService() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val kanaConverter = KanaConverter()
+    /** かな漢字変換エンジン (OpenWnn)。辞書のロードは onCreate でバックグラウンドスレッドを開始 */
+    private val kanjiEngine = WnnKanjiEngine()
+    /** かなモードの composing 状態 (未変換の平仮名 ↔ 変換済みの文節一覧) */
+    private val composing = KanaComposition(kanjiEngine)
 
     private var midiListener: MidiListener? = null
     private var engine: MappingEngine? = null
     private var statusView: TextView? = null
-
-    // 未確定のかな（composing 中の文字列）
-    private var composingKana = ""
 
     private val configListener: (Config) -> Unit = { cfg ->
         mainHandler.post {
@@ -48,6 +49,11 @@ class PianotypeImeService : InputMethodService() {
         window?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         ConfigRepository.load(this)
+
+        // かな漢字変換辞書 (OpenWnn) をバックグラウンドでロードする
+        Thread {
+            kanjiEngine.start()
+        }.start()
 
         engine = MappingEngine(
             configProvider = { ConfigRepository.current },
@@ -192,8 +198,9 @@ class PianotypeImeService : InputMethodService() {
                 return
             }
             "delete" -> {
-                composingKana = ""
-                ic.commitText("", 1)
+                composing.reset()
+                kanaConverter.reset()
+                ic.setComposingText("", 1)
                 return
             }
             "confirm", "commit" -> {
@@ -202,7 +209,12 @@ class PianotypeImeService : InputMethodService() {
             }
         }
 
-        // かな文字はそのまま、ローマ字は KanaConverter で変換して composingKana に積む
+        // 変換済み状態でさらに文字が来た場合は、いったん確定して新しい composing を始める
+        if (composing.isConverted) {
+            commitComposing(ic)
+        }
+
+        // かな文字はそのまま、ローマ字は KanaConverter で変換して composing に積む
         val added = StringBuilder()
         for (ch in text) {
             val kana = kanaConverter.input(ch)
@@ -210,8 +222,8 @@ class PianotypeImeService : InputMethodService() {
         }
         if (added.isEmpty()) return
 
-        composingKana += added.toString()
-        ic.setComposingText(composingKana, 1)
+        composing.appendKana(added.toString())
+        updateComposing(ic)
     }
 
     private fun handleKanaKey(keyCode: Int): Boolean {
@@ -219,23 +231,57 @@ class PianotypeImeService : InputMethodService() {
 
         when (keyCode) {
             KeyEvent.KEYCODE_ENTER -> {
-                if (composingKana.isNotEmpty()) {
+                if (!composing.isEmpty || composing.isConverted) {
                     commitComposing(ic)
                     return true
                 }
             }
 
             KeyEvent.KEYCODE_DEL -> {
-                if (composingKana.isNotEmpty()) {
-                    backspaceComposing(ic)
+                if (composing.isConverted) {
+                    // 変換をやめる (読み = 平仮名へ戻す)
+                    composing.undoConversion()
+                    kanaConverter.reset()
+                    updateComposing(ic)
+                    return true
+                }
+                if (!composing.isEmpty) {
+                    composing.dropLastChar()
+                    updateComposing(ic)
                     return true
                 }
             }
 
             KeyEvent.KEYCODE_SPACE -> {
-                if (composingKana.isNotEmpty()) {
-                    // とりあえず未変換のかなを確定
-                    commitComposing(ic)
+                if (!composing.isEmpty) {
+                    // 対象文節の移動・候補切り替え
+                    if (!composing.isConverted) {
+                        // ローマ字の pending も吐き出したうえで連文節変換
+                        val flushed = kanaConverter.flush()
+                        if (flushed.isNotEmpty()) composing.appendKana(flushed)
+                        var committed = false
+                        if (composing.convert()) {
+                            updateComposing(ic)
+                            committed = true
+                        }
+                        if (!committed) {
+                            // エンジン未ロード / 変換失敗 → 従来どおり平仮名のまま確定
+                            commitComposing(ic)
+                        }
+                    } else {
+                        // 候補切り替え・対象文節移動
+                        composing.cycleOrConvert()
+                        updateComposing(ic)
+                    }
+                    return true
+                }
+            }
+
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                if (composing.isConverted) {
+                    // 変換済み: 対象文節を移動する
+                    composing.moveFocus(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                    updateComposing(ic)
                     return true
                 }
             }
@@ -244,20 +290,42 @@ class PianotypeImeService : InputMethodService() {
         return false
     }
 
+    /** composing の表示を現状に合わせて更新 */
+    private fun updateComposing(ic: InputConnection) {
+        if (composing.isEmpty && !composing.isConverted) {
+            ic.setComposingText("", 1)
+            return
+        }
+        ic.setComposingText(composing.displayingText, 1)
+    }
+
     private fun commitComposing(ic: InputConnection) {
-        if (composingKana.isEmpty()) return
-        ic.commitText(composingKana, 1)
-        composingKana = ""
+        // ローマ字の残留 (n など) も忘れず吐き出す
+        val flushed = kanaConverter.flush()
+        if (flushed.isNotEmpty() && !composing.isConverted) composing.appendKana(flushed)
+
+        if (composing.isEmpty && !composing.isConverted) return
+        ic.commitText(composing.displayingText, 1)
+        resetComposingState()
     }
 
     private fun backspaceComposing(ic: InputConnection) {
-        if (composingKana.isEmpty()) return
-        composingKana = composingKana.dropLast(1)
-        ic.setComposingText(composingKana, 1)
+        if (composing.isConverted) {
+            composing.undoConversion()
+            kanaConverter.reset()
+            updateComposing(ic)
+            return
+        }
+        if (composing.dropLastChar()) updateComposing(ic)
+    }
+
+    private fun resetComposingState() {
+        composing.reset()
+        kanaConverter.reset()
     }
 
     private fun resetComposing() {
-        composingKana = ""
+        resetComposingState()
     }
 
     private fun sendKeyEvent(ic: InputConnection, action: OutputAction.Key) {
